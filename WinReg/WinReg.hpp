@@ -9,7 +9,7 @@
 //               Copyright (C) by Giovanni Dicanio
 //
 // First version: 2017, January 22nd
-// Last update:   2022, July 13th
+// Last update:   2022, July 20th
 //
 // E-mail: <first name>.<last name> AT REMOVE_THIS gmail.com
 //
@@ -33,7 +33,7 @@
 // ATL's CString is not used, to avoid dependencies from ATL or MFC.
 //
 // Compiler: Visual Studio 2019
-// C++ Language Standard: C++17 (/std:c++17)
+// C++ Language Standard: C++14 (VS2019 default)
 // Code compiles cleanly at warning level 4 (/W4) on both 32-bit and 64-bit builds.
 //
 // Requires building in Unicode mode (which has been the default since VS2005).
@@ -69,10 +69,10 @@
 #include <crtdbg.h>         // _ASSERTE
 
 #include <memory>           // std::unique_ptr, std::make_unique
+#include <stdexcept>        // std::invalid_argument
 #include <string>           // std::wstring
 #include <system_error>     // std::system_error
 #include <utility>          // std::swap, std::pair, std::move
-#include <variant>          // std::variant
 #include <vector>           // std::vector
 
 
@@ -161,16 +161,16 @@ public:
     //
 
     // Access the wrapped raw HKEY handle
-    [[nodiscard]] HKEY Get() const noexcept;
+    HKEY Get() const noexcept;
 
     // Is the wrapped HKEY handle valid?
-    [[nodiscard]] bool IsValid() const noexcept;
+    bool IsValid() const noexcept;
 
     // Same as IsValid(), but allow a short "if (regKey)" syntax
-    [[nodiscard]] explicit operator bool() const noexcept;
+    explicit operator bool() const noexcept;
 
     // Is the wrapped handle a predefined handle (e.g.HKEY_CURRENT_USER) ?
-    [[nodiscard]] bool IsPredefined() const noexcept;
+    bool IsPredefined() const noexcept;
 
 
     //
@@ -184,7 +184,7 @@ public:
 
     // Transfer ownership of current HKEY to the caller.
     // Note that the caller is responsible for closing the key handle!
-    [[nodiscard]] HKEY Detach() noexcept;
+    HKEY Detach() noexcept;
 
     // Take ownership of the input HKEY handle.
     // Safely close any previously open handle.
@@ -244,14 +244,14 @@ public:
     );
 
     // Wrapper around RegCreateKeyEx, that allows you to specify desired access
-    [[nodiscard]] RegResult TryCreate(
+    RegResult TryCreate(
         HKEY hKeyParent,
         const std::wstring& subKey,
         REGSAM desiredAccess = KEY_READ | KEY_WRITE | KEY_WOW64_64KEY
     ) noexcept;
 
     // Wrapper around RegCreateKeyEx
-    [[nodiscard]] RegResult TryCreate(
+    RegResult TryCreate(
         HKEY hKeyParent,
         const std::wstring& subKey,
         REGSAM desiredAccess,
@@ -261,7 +261,7 @@ public:
     ) noexcept;
 
     // Wrapper around RegOpenKeyEx
-    [[nodiscard]] RegResult TryOpen(
+    RegResult TryOpen(
         HKEY hKeyParent,
         const std::wstring& subKey,
         REGSAM desiredAccess = KEY_READ | KEY_WRITE | KEY_WOW64_64KEY
@@ -286,38 +286,34 @@ public:
     // (instead of throwing RegException on error)
     //
 
-    [[nodiscard]] RegResult TrySetDwordValue(const std::wstring& valueName, DWORD data) noexcept;
+    RegResult TrySetDwordValue(const std::wstring& valueName, DWORD data) noexcept;
+    RegResult TrySetQwordValue(const std::wstring& valueName, const ULONGLONG& data) noexcept;
+    RegResult TrySetStringValue(const std::wstring& valueName, const std::wstring& data) noexcept;
 
-    [[nodiscard]] RegResult TrySetQwordValue(const std::wstring& valueName,
-                                             const ULONGLONG& data) noexcept;
+    RegResult TrySetExpandStringValue(const std::wstring& valueName,
+                                      const std::wstring& data) noexcept;
 
-    [[nodiscard]] RegResult TrySetStringValue(const std::wstring& valueName,
-                                              const std::wstring& data) noexcept;
-
-    [[nodiscard]] RegResult TrySetExpandStringValue(const std::wstring& valueName,
-                                                    const std::wstring& data) noexcept;
-
-    [[nodiscard]] RegResult TrySetMultiStringValue(const std::wstring& valueName,
-                                                   const std::vector<std::wstring>& data);
+    RegResult TrySetMultiStringValue(const std::wstring& valueName,
+                                     const std::vector<std::wstring>& data);
     // Note: The TrySetMultiStringValue method CANNOT be marked noexcept,
     // because internally the method *dynamically allocates memory* for creating the multi-string
     // that will be stored in the Registry.
 
-    [[nodiscard]] RegResult TrySetBinaryValue(const std::wstring& valueName,
-                                              const std::vector<BYTE>& data) noexcept;
+    RegResult TrySetBinaryValue(const std::wstring& valueName,
+                                const std::vector<BYTE>& data) noexcept;
 
-    [[nodiscard]] RegResult TrySetBinaryValue(const std::wstring& valueName,
-                                              const void* data,
-                                              DWORD dataSize) noexcept;
+    RegResult TrySetBinaryValue(const std::wstring& valueName,
+                                const void* data,
+                                DWORD dataSize) noexcept;
 
 
     //
     // Registry Value Getters
     //
 
-    [[nodiscard]] DWORD GetDwordValue(const std::wstring& valueName) const;
-    [[nodiscard]] ULONGLONG GetQwordValue(const std::wstring& valueName) const;
-    [[nodiscard]] std::wstring GetStringValue(const std::wstring& valueName) const;
+    DWORD GetDwordValue(const std::wstring& valueName) const;
+    ULONGLONG GetQwordValue(const std::wstring& valueName) const;
+    std::wstring GetStringValue(const std::wstring& valueName) const;
 
     enum class ExpandStringOption
     {
@@ -325,13 +321,13 @@ public:
         Expand
     };
 
-    [[nodiscard]] std::wstring GetExpandStringValue(
+    std::wstring GetExpandStringValue(
         const std::wstring& valueName,
         ExpandStringOption expandOption = ExpandStringOption::DontExpand
     ) const;
 
-    [[nodiscard]] std::vector<std::wstring> GetMultiStringValue(const std::wstring& valueName) const;
-    [[nodiscard]] std::vector<BYTE> GetBinaryValue(const std::wstring& valueName) const;
+    std::vector<std::wstring> GetMultiStringValue(const std::wstring& valueName) const;
+    std::vector<BYTE> GetBinaryValue(const std::wstring& valueName) const;
 
 
     //
@@ -339,19 +335,19 @@ public:
     // (instead of throwing RegException on error)
     //
 
-    [[nodiscard]] RegExpected<DWORD> TryGetDwordValue(const std::wstring& valueName) const;
-    [[nodiscard]] RegExpected<ULONGLONG> TryGetQwordValue(const std::wstring& valueName) const;
-    [[nodiscard]] RegExpected<std::wstring> TryGetStringValue(const std::wstring& valueName) const;
+    RegExpected<DWORD> TryGetDwordValue(const std::wstring& valueName) const;
+    RegExpected<ULONGLONG> TryGetQwordValue(const std::wstring& valueName) const;
+    RegExpected<std::wstring> TryGetStringValue(const std::wstring& valueName) const;
 
-    [[nodiscard]] RegExpected<std::wstring> TryGetExpandStringValue(
+    RegExpected<std::wstring> TryGetExpandStringValue(
         const std::wstring& valueName,
         ExpandStringOption expandOption = ExpandStringOption::DontExpand
     ) const;
 
-    [[nodiscard]] RegExpected<std::vector<std::wstring>>
+    RegExpected<std::vector<std::wstring>>
             TryGetMultiStringValue(const std::wstring& valueName) const;
 
-    [[nodiscard]] RegExpected<std::vector<BYTE>>
+    RegExpected<std::vector<BYTE>>
             TryGetBinaryValue(const std::wstring& valueName) const;
 
 
@@ -383,10 +379,10 @@ public:
     };
 
     // Retrieve information about the registry key
-    [[nodiscard]] InfoKey QueryInfoKey() const;
+    InfoKey QueryInfoKey() const;
 
     // Return the DWORD type ID for the input registry value
-    [[nodiscard]] DWORD QueryValueType(const std::wstring& valueName) const;
+    DWORD QueryValueType(const std::wstring& valueName) const;
 
 
     enum class KeyReflection
@@ -396,15 +392,15 @@ public:
     };
 
     // Determines whether reflection has been disabled or enabled for the specified key
-    [[nodiscard]] KeyReflection QueryReflectionKey() const;
+    KeyReflection QueryReflectionKey() const;
 
     // Enumerate the subkeys of the registry key, using RegEnumKeyEx
-    [[nodiscard]] std::vector<std::wstring> EnumSubKeys() const;
+    std::vector<std::wstring> EnumSubKeys() const;
 
     // Enumerate the values under the registry key, using RegEnumValue.
     // Returns a vector of pairs: In each pair, the wstring is the value name,
     // the DWORD is the value type.
-    [[nodiscard]] std::vector<std::pair<std::wstring, DWORD>> EnumValues() const;
+    std::vector<std::pair<std::wstring, DWORD>> EnumValues() const;
 
 
     //
@@ -413,22 +409,22 @@ public:
     //
 
     // Retrieve information about the registry key
-    [[nodiscard]] RegExpected<InfoKey> TryQueryInfoKey() const;
+    RegExpected<InfoKey> TryQueryInfoKey() const;
 
     // Return the DWORD type ID for the input registry value
-    [[nodiscard]] RegExpected<DWORD> TryQueryValueType(const std::wstring& valueName) const;
+    RegExpected<DWORD> TryQueryValueType(const std::wstring& valueName) const;
 
 
     // Determines whether reflection has been disabled or enabled for the specified key
-    [[nodiscard]] RegExpected<KeyReflection> TryQueryReflectionKey() const;
+    RegExpected<KeyReflection> TryQueryReflectionKey() const;
 
     // Enumerate the subkeys of the registry key, using RegEnumKeyEx
-    [[nodiscard]] RegExpected<std::vector<std::wstring>> TryEnumSubKeys() const;
+    RegExpected<std::vector<std::wstring>> TryEnumSubKeys() const;
 
     // Enumerate the values under the registry key, using RegEnumValue.
     // Returns a vector of pairs: In each pair, the wstring is the value name,
     // the DWORD is the value type.
-    [[nodiscard]] RegExpected<std::vector<std::pair<std::wstring, DWORD>>> TryEnumValues() const;
+    RegExpected<std::vector<std::pair<std::wstring, DWORD>>> TryEnumValues() const;
 
 
     //
@@ -452,30 +448,30 @@ public:
     // (instead of throwing RegException on error)
     //
 
-    [[nodiscard]] RegResult TryDeleteValue(const std::wstring& valueName) noexcept;
-    [[nodiscard]] RegResult TryDeleteKey(const std::wstring& subKey, REGSAM desiredAccess) noexcept;
-    [[nodiscard]] RegResult TryDeleteTree(const std::wstring& subKey) noexcept;
+    RegResult TryDeleteValue(const std::wstring& valueName) noexcept;
+    RegResult TryDeleteKey(const std::wstring& subKey, REGSAM desiredAccess) noexcept;
+    RegResult TryDeleteTree(const std::wstring& subKey) noexcept;
 
-    [[nodiscard]] RegResult TryCopyTree(const std::wstring& sourceSubKey,
-                                        const RegKey& destKey) noexcept;
+    RegResult TryCopyTree(const std::wstring& sourceSubKey,
+                          const RegKey& destKey) noexcept;
 
-    [[nodiscard]] RegResult TryFlushKey() noexcept;
+    RegResult TryFlushKey() noexcept;
 
-    [[nodiscard]] RegResult TryLoadKey(const std::wstring& subKey,
-                                       const std::wstring& filename) noexcept;
+    RegResult TryLoadKey(const std::wstring& subKey,
+                         const std::wstring& filename) noexcept;
 
-    [[nodiscard]] RegResult TrySaveKey(const std::wstring& filename,
-                                       SECURITY_ATTRIBUTES* securityAttributes) const noexcept;
+    RegResult TrySaveKey(const std::wstring& filename,
+                         SECURITY_ATTRIBUTES* securityAttributes) const noexcept;
 
-    [[nodiscard]] RegResult TryEnableReflectionKey() noexcept;
-    [[nodiscard]] RegResult TryDisableReflectionKey() noexcept;
+    RegResult TryEnableReflectionKey() noexcept;
+    RegResult TryDisableReflectionKey() noexcept;
 
-    [[nodiscard]] RegResult TryConnectRegistry(const std::wstring& machineName,
-                                               HKEY hKeyPredefined) noexcept;
+    RegResult TryConnectRegistry(const std::wstring& machineName,
+                                 HKEY hKeyPredefined) noexcept;
 
 
     // Return a string representation of Windows registry types
-    [[nodiscard]] static std::wstring RegTypeToString(DWORD regType);
+    static std::wstring RegTypeToString(DWORD regType);
 
 
     //
@@ -520,23 +516,23 @@ public:
     explicit RegResult(LSTATUS result) noexcept;
 
     // Is the wrapped code a success code?
-    [[nodiscard]] bool IsOk() const noexcept;
+    bool IsOk() const noexcept;
 
     // Is the wrapped error code a failure code?
-    [[nodiscard]] bool Failed() const noexcept;
+    bool Failed() const noexcept;
 
     // Is the wrapped code a success code?
-    [[nodiscard]] explicit operator bool() const noexcept;
+    explicit operator bool() const noexcept;
 
     // Get the wrapped Win32 code
-    [[nodiscard]] LSTATUS Code() const noexcept;
+    LSTATUS Code() const noexcept;
 
     // Return the system error message associated to the current error code
-    [[nodiscard]] std::wstring ErrorMessage() const;
+    std::wstring ErrorMessage() const;
 
     // Return the system error message associated to the current error code,
     // using the given input language identifier
-    [[nodiscard]] std::wstring ErrorMessage(DWORD languageId) const;
+    std::wstring ErrorMessage(DWORD languageId) const;
 
 private:
     // Error code returned by Windows Registry C API;
@@ -567,24 +563,26 @@ public:
     explicit RegExpected(T&& value);
 
     // Does this object contain a valid value?
-    [[nodiscard]] explicit operator bool() const noexcept;
+    explicit operator bool() const noexcept;
 
     // Does this object contain a valid value?
-    [[nodiscard]] bool IsValid() const noexcept;
+    bool IsValid() const noexcept;
 
     // Access the value (if the object contains a valid value).
     // Throws an exception if the object is in invalid state.
-    [[nodiscard]] const T& GetValue() const;
+    const T& GetValue() const;
 
-    // Access the error code (if the object contains an error status)
-    // Throws an exception if the object is in valid state.
-    [[nodiscard]] RegResult GetError() const;
+    // Access the error code (if the object contains an error status).
+    // Can also be called if the object contains a valid value
+    // (in this case, the returned error code is ERROR_SUCCESS).
+    RegResult GetError() const;
 
 
 private:
-    // Stores a value of type T on success,
-    // or RegResult on error
-    std::variant<RegResult, T> m_var;
+    RegResult m_result{ ERROR_SUCCESS };
+
+    // Value is valid only if m_result is ERROR_SUCCESS
+    T m_value{};
 };
 
 
@@ -662,13 +660,13 @@ public:
 
 
     // Read-only access to the wrapped pointer
-    [[nodiscard]] T* Get() const noexcept
+    T* Get() const noexcept
     {
         return m_ptr;
     }
 
     // Writable access to the wrapped pointer
-    [[nodiscard]] T** AddressOf() noexcept
+    T** AddressOf() noexcept
     {
         return &m_ptr;
     }
@@ -707,7 +705,7 @@ private:
 // E.g.:
 //          Hello\0World\0\0
 //------------------------------------------------------------------------------
-[[nodiscard]] inline std::vector<wchar_t> BuildMultiString(const std::vector<std::wstring>& data)
+inline std::vector<wchar_t> BuildMultiString(const std::vector<std::wstring>& data)
 {
     // Special case of the empty multi-string
     if (data.empty())
@@ -758,7 +756,7 @@ private:
 // Return true if the wchar_t sequence stored in 'data' terminates
 // with two null (L'\0') wchar_t's
 //------------------------------------------------------------------------------
-[[nodiscard]] inline bool IsDoubleNullTerminated(const std::vector<wchar_t>& data)
+inline bool IsDoubleNullTerminated(const std::vector<wchar_t>& data)
 {
     // First check that there's enough room for at least two nulls
     if (data.size() < 2)
@@ -779,7 +777,7 @@ private:
 //
 // Also supports embedded empty strings in the sequence.
 //------------------------------------------------------------------------------
-[[nodiscard]] inline std::vector<std::wstring> ParseMultiString(const std::vector<wchar_t>& data)
+inline std::vector<std::wstring> ParseMultiString(const std::vector<wchar_t>& data)
 {
     // Make sure that there are two terminating L'\0's at the end of the sequence
     if (!IsDoubleNullTerminated(data))
@@ -863,7 +861,7 @@ private:
 // Builds a RegExpected object that stores an error code
 //------------------------------------------------------------------------------
 template <typename T>
-[[nodiscard]] inline RegExpected<T> MakeRegExpectedWithError(const LSTATUS retCode)
+inline RegExpected<T> MakeRegExpectedWithError(const LSTATUS retCode)
 {
     return RegExpected<T>{ RegResult{ retCode } };
 }
@@ -1546,6 +1544,12 @@ inline std::wstring RegKey::GetStringValue(const std::wstring& valueName) const
     // we have to convert the size from bytes to wchar_ts for wstring::resize.
     std::wstring result(dataSize / sizeof(wchar_t), L' ');
 
+    if (result.empty())
+    {
+        // Don't call RegGetValueW a second time if the string size is zero
+        return result;
+    }
+
     // Call RegGetValue for the second time to read the string's content
     retCode = ::RegGetValueW(
         m_hKey,
@@ -1553,7 +1557,7 @@ inline std::wstring RegKey::GetStringValue(const std::wstring& valueName) const
         valueName.c_str(),
         flags,
         nullptr,       // type not required
-        result.data(), // output buffer
+        &result[0],    // output buffer
         &dataSize
     );
     if (retCode != ERROR_SUCCESS)
@@ -1604,6 +1608,12 @@ inline std::wstring RegKey::GetExpandStringValue(
     // We must convert from bytes to wchar_ts for wstring::resize.
     std::wstring result(dataSize / sizeof(wchar_t), L' ');
 
+    if (result.empty())
+    {
+        // Don't call RegGetValueW a second time if the string size is zero
+        return result;
+    }
+
     // Call RegGetValue for the second time to read the string's content
     retCode = ::RegGetValueW(
         m_hKey,
@@ -1611,7 +1621,7 @@ inline std::wstring RegKey::GetExpandStringValue(
         valueName.c_str(),
         flags,
         nullptr,       // type not required
-        result.data(), // output buffer
+        &result[0],    // output buffer
         &dataSize
     );
     if (retCode != ERROR_SUCCESS)
@@ -1814,6 +1824,12 @@ inline RegExpected<std::wstring> RegKey::TryGetStringValue(const std::wstring& v
     // we have to convert the size from bytes to wchar_ts for wstring::resize.
     std::wstring result(dataSize / sizeof(wchar_t), L' ');
 
+    if (result.empty())
+    {
+        // Don't call RegGetValueW a second time if the string size is zero
+        return RegExpected<RegValueType>{ result };
+    }
+
     // Call RegGetValue for the second time to read the string's content
     retCode = ::RegGetValueW(
         m_hKey,
@@ -1821,7 +1837,7 @@ inline RegExpected<std::wstring> RegKey::TryGetStringValue(const std::wstring& v
         valueName.c_str(),
         flags,
         nullptr,        // type not required
-        result.data(),  // output buffer
+        &result[0],     // output buffer
         &dataSize
     );
     if (retCode != ERROR_SUCCESS)
@@ -1874,6 +1890,12 @@ inline RegExpected<std::wstring> RegKey::TryGetExpandStringValue(
     // We must convert from bytes to wchar_ts for wstring::resize.
     std::wstring result(dataSize / sizeof(wchar_t), L' ');
 
+    if (result.empty())
+    {
+        // Don't call RegGetValueW a second time if the string size is zero
+        return RegExpected<RegValueType>{result};
+    }
+
     // Call RegGetValue for the second time to read the string's content
     retCode = ::RegGetValueW(
         m_hKey,
@@ -1881,7 +1903,7 @@ inline RegExpected<std::wstring> RegKey::TryGetExpandStringValue(
         valueName.c_str(),
         flags,
         nullptr,        // type not required
-        result.data(),  // output buffer
+        &result[0],     // output buffer
         &dataSize
     );
     if (retCode != ERROR_SUCCESS)
@@ -2771,19 +2793,19 @@ inline std::wstring RegResult::ErrorMessage(const DWORD languageId) const
 
 template <typename T>
 inline RegExpected<T>::RegExpected(const RegResult& errorCode) noexcept
-    : m_var{ errorCode }
+    : m_result{ errorCode }
 {}
 
 
 template <typename T>
 inline RegExpected<T>::RegExpected(const T& value)
-    : m_var{ value }
+    : m_value{ value }
 {}
 
 
 template <typename T>
 inline RegExpected<T>::RegExpected(T&& value)
-    : m_var{ std::move(value) }
+    : m_value{ std::move(value) }
 {}
 
 
@@ -2797,7 +2819,7 @@ inline RegExpected<T>::operator bool() const noexcept
 template <typename T>
 inline bool RegExpected<T>::IsValid() const noexcept
 {
-    return std::holds_alternative<T>(m_var);
+    return m_result.IsOk();
 }
 
 
@@ -2807,20 +2829,21 @@ inline const T& RegExpected<T>::GetValue() const
     // Check that the object stores a valid value
     _ASSERTE(IsValid());
 
-    // If the object is in a valid state, the variant stores an instance of T
-    return std::get<T>(m_var);
+    if (!IsValid())
+    {
+        // TODO: May use another exception?
+        throw std::invalid_argument{ "RegExpected<T>::GetValue() called on an instance in error state." };
+    }
+
+    // If the object is in a valid state, return the value
+    return m_value;
 }
 
 
 template <typename T>
 inline RegResult RegExpected<T>::GetError() const
 {
-    // Check that the object is in an invalid state
-    _ASSERTE(!IsValid());
-
-    // If the object is in an invalid state, the variant stores a RegResult
-    // that represents an error code from the Windows Registry API
-    return std::get<RegResult>(m_var);
+    return m_result;
 }
 
 
