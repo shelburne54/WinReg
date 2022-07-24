@@ -1,4 +1,4 @@
-# WinReg v7.0.0 -- C++14 Compatible Version
+# WinReg v6.1.0-cpp14 -- C++14 Compatible Version
 ## High-level C++ Wrapper Around the Low-level Windows Registry C-interface API
 
 by Giovanni Dicanio
